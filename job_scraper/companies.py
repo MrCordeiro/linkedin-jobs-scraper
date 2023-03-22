@@ -44,7 +44,8 @@ class Company:
         """Fetch the URL for the jobs page of a company"""
         _valid_params = ["f_C", "geoId"]
         jobs_url = scrape_jobs_url(f"{self.url}/jobs")
-        jobs_url = _filter_url_params(jobs_url, _valid_params)
+        if jobs_url:
+            jobs_url = _filter_url_params(jobs_url, _valid_params)
         return jobs_url
 
     def save(self) -> None:
