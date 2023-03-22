@@ -1,0 +1,51 @@
+#!/bin/bash
+# Install latest Chrome for Linux
+
+# Bash config
+set -o errexit
+set -o nounset
+if [ -n "${BASH_VERSION:-}" ]; then
+    set -o pipefail
+fi
+if [ -n "${ZSH_VERSION:-}" ]; then
+    setopt pipe_fail
+fi
+
+install_chrome()
+{
+    # Install dependencies
+    sudo apt install libatk1.0-0
+
+    # Download and install
+    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    sudo dpkg -i google-chrome-stable_current_amd64.deb
+    sudo apt --fix-broken install -y
+
+    # Cleanup
+    rm google-chrome-stable_current_amd64.deb
+}
+
+install_chromedriver()
+{
+    # Get latest version
+    local chrome_driver
+    chrome_driver=$(curl "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")
+    echo "Installing version ${chrome_driver}"
+
+    # Download and install~
+    local driver_dir="${HOME}/chromedriver/stable"
+    curl -Lo chromedriver_linux64.zip "https://chromedriver.storage.googleapis.com/${chrome_driver}/chromedriver_linux64.zip"
+    mkdir -p "$driver_dir"
+    unzip -q "chromedriver_linux64.zip" -d "$driver_dir"
+    chmod +x "${driver_dir}/chromedriver"
+
+    # Cleanup
+    rm "chromedriver_linux64.zip"
+}
+
+main() {
+    install_chrome
+    install_chromedriver
+}
+
+main
