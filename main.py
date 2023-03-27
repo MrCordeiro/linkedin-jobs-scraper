@@ -1,8 +1,9 @@
 """Entry point for the job scraper application."""
+# pylint: disable=not-callable
 import logging
 
 import click
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from job_scraper.companies import get_company
 from job_scraper.database import LocalSession
@@ -14,12 +15,25 @@ from job_scraper.scrapers.bs4 import (
     scrape_job_description,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 
 def scrape_job_descriptions() -> None:
     """Scrape job descriptions for jobs that don't have them yet."""
-    with LocalSession.begin() as session:
+    with LocalSession() as session:
         jobs_to_search = select(JobPost).filter_by(description=None)
-        n_jobs = session.execute(jobs_to_search).rowcount
+
+        count_query = select(func.count()).select_from(jobs_to_search.alias())
+        n_jobs = session.scalar(count_query)
+
+        if n_jobs == 0:
+            logging.info("No job descriptions to scrape")
+            return
+
         for count, job in enumerate(session.scalars(jobs_to_search)):
             logging.info(
                 "Scraping job description for %s (%d/%d)", job.title, count, n_jobs
@@ -33,6 +47,7 @@ def scrape_job_descriptions() -> None:
                 # have the job description anymore. We might as well delete it
                 # for now.
                 session.delete(job)
+            session.commit()
 
 
 @click.command()
@@ -80,9 +95,4 @@ def main(company_name: str, location: str | None, language: str | None):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
     main()
