@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 from slugify import slugify
 
-from job_scraper.selenium import scrape_jobs_url
+from job_scraper.scrapers.selenium import scrape_jobs_url
 from job_scraper.settings import COMPANY_PAGE, PROJECT_DIR
 
 COMPANIES_DIR = PROJECT_DIR / "data" / "companies"
@@ -40,6 +40,11 @@ class Company:
         """Returns the URL of the company page"""
         return f"{COMPANY_PAGE}/{self.slug}"
 
+    @property
+    def is_valid(self) -> bool:
+        """Company is valid if it has a jobs URL"""
+        return bool(self.jobs_url)
+
     def _get_jobs_url(self) -> str | None:
         """Fetch the URL for the jobs page of a company"""
         _valid_params = ["f_C", "geoId"]
@@ -47,6 +52,19 @@ class Company:
         if jobs_url:
             jobs_url = _filter_url_params(jobs_url, _valid_params)
         return jobs_url
+
+    def delete(self) -> None:
+        """Deletes the company data file"""
+        fp = COMPANIES_DIR / f"{self.slug}.json"
+        if fp.exists():
+            fp.unlink()
+
+    def validate(self) -> bool:
+        """Checks if the company data is valid and deletes it if not"""
+        if not self.is_valid:
+            self.delete()
+            return False
+        return True
 
     def save(self) -> None:
         """Stores the company data as a JSON file"""

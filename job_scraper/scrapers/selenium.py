@@ -1,14 +1,18 @@
-"""Functions for scraping LinkedIn with Selenium."""
+"""Scraping LinkedIn with Selenium"""
 import os
-import time
 
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
-from job_scraper.settings import LOGIN_PAGE, WEBDRIVER_PATH
+from job_scraper.settings import LOGIN_PAGE, TIMEOUT_LIMIT_SECONDS, WEBDRIVER_PATH
+
+load_dotenv()
 
 
 def authenticate(browser: webdriver.Chrome, login_url: str) -> None:
@@ -20,7 +24,9 @@ def authenticate(browser: webdriver.Chrome, login_url: str) -> None:
     password = browser.find_element(By.ID, "password")
     password.send_keys(os.getenv("LINKEDIN_PASSWORD"))
     password.send_keys(Keys.RETURN)
-    time.sleep(5)
+    WebDriverWait(browser, timeout=TIMEOUT_LIMIT_SECONDS).until(
+        EC.presence_of_element_located((By.XPATH, "//h1[text()='Feed Updates']"))
+    )
 
 
 def get_chrome() -> webdriver.Chrome:
@@ -40,14 +46,20 @@ def scrape_jobs_url(company_page_url: str) -> str | None:
     browser = get_chrome()
     authenticate(browser, LOGIN_PAGE)
     browser.get(company_page_url)
-    jobs_selector = browser.find_elements(
-        By.CLASS_NAME, "org-jobs-recently-posted-jobs-module"
+    # jobs_selector = browser.find_elements(
+    #     By.CLASS_NAME, "org-jobs-recently-posted-jobs-module"
+    # )
+    jobs_selector = WebDriverWait(browser, timeout=TIMEOUT_LIMIT_SECONDS).until(
+        EC.presence_of_element_located(
+            (By.CLASS_NAME, "org-jobs-recently-posted-jobs-module")
+        )
     )
+
     try:
-        see_all_jobs_btn = jobs_selector[0].find_elements(By.TAG_NAME, "a")[0]
+        see_all_jobs_btn = jobs_selector.find_elements(By.TAG_NAME, "a")[0]
         jobs_url = see_all_jobs_btn.get_attribute("href")
     except IndexError:
         return None
     finally:
-        browser.close()
+        browser.quit()
     return jobs_url

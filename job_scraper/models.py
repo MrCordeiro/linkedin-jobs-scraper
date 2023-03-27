@@ -1,15 +1,15 @@
 """SQLAlchemy models"""
 # pylint: disable=not-callable, too-few-public-methods
+import logging
 from datetime import datetime
 
 from sqlalchemy import String, Text, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 
-
-class Base(DeclarativeBase):
-    """Base class for SQLAlchemy models"""
+from job_scraper.database import Base, LocalSession, init_db
 
 
 class JobPost(Base):
@@ -26,7 +26,7 @@ class JobPost(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     linkedin_id: Mapped[int] = mapped_column()
-    lang: Mapped[str] = mapped_column(String(5), default="en")
+    lang: Mapped[str | None] = mapped_column(String(5))
     title: Mapped[str] = mapped_column(String(100))
     company: Mapped[str] = mapped_column(String(60))
     location: Mapped[str] = mapped_column(String(60))
@@ -44,3 +44,17 @@ class JobPost(Base):
     # old job postings. However, the combination of linkedin_id and title
     # should be
     __table_args__ = (UniqueConstraint(linkedin_id, title, name="u_lid_title"),)
+
+    def save(self) -> None:
+        """Save the job post to the database."""
+        with LocalSession() as session:
+            try:
+                session.add(self)
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                logging.info("Job %s already exists", self.title)
+                return
+
+
+init_db()

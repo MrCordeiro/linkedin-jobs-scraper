@@ -15,7 +15,7 @@ python-slugify = "^8.0.1"
 beautifulsoup4 = "^4.12.0"
 fake-useragent = "^1.1.1"
 sqlalchemy = "^2.0.7"
-
+click = "^8.1.3"
 
 [tool.poetry.group.dev.dependencies]
 # Linters
@@ -28,6 +28,12 @@ pytest = "^7.2.2"
 ipykernel = "^6.21.3"
 pandas = "^1.5.3"
 plotly = "^5.13.1"
+nbformat = ">=4.2.0"
+
+[tool.poetry.scripts]
+scrape = "main:main"
+backfill = "main:scrape_job_descriptions"
+
 
 [tool.black]
 line-length = 88
@@ -38,6 +44,10 @@ profile = "black"
 
 [tool.pylint.basic]
 good-names = ["pk", "to", "_", "i", "n", "fp", "tz"]
+
+[tool.pylint.typecheck]
+signature-mutators = ["click.decorators.option"]
+ignored-classes = ["sqlalchemy.orm.session.sessionmaker"]
 
 [build-system]
 requires = ["poetry-core"]
