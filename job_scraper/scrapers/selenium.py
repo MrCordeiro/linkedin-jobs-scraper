@@ -1,8 +1,11 @@
 """Scraping LinkedIn with Selenium"""
+import logging
 import os
+import sys
 
 from dotenv import load_dotenv
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -46,18 +49,22 @@ def scrape_jobs_url(company_page_url: str) -> str | None:
     browser = get_chrome()
     authenticate(browser, LOGIN_PAGE)
     browser.get(company_page_url)
-    # jobs_selector = browser.find_elements(
-    #     By.CLASS_NAME, "org-jobs-recently-posted-jobs-module"
-    # )
-    jobs_selector = WebDriverWait(browser, timeout=TIMEOUT_LIMIT_SECONDS).until(
-        EC.presence_of_element_located(
-            (By.CLASS_NAME, "org-jobs-recently-posted-jobs-module")
-        )
-    )
 
     try:
+        jobs_selector = WebDriverWait(browser, timeout=TIMEOUT_LIMIT_SECONDS).until(
+            EC.presence_of_element_located(
+                (By.CLASS_NAME, "org-jobs-recently-posted-jobs-module")
+            )
+        )
         see_all_jobs_btn = jobs_selector.find_elements(By.TAG_NAME, "a")[0]
         jobs_url = see_all_jobs_btn.get_attribute("href")
+    except TimeoutException:
+        # If we can't find the jobs selector, the company page is probably
+        # wrong or the company doesn't have any jobs.
+        logging.error(
+            "Unable to find jobs selector in company page '%s'", company_page_url
+        )
+        sys.exit(1)
     except IndexError:
         return None
     finally:

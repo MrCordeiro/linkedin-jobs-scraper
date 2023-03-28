@@ -47,7 +47,7 @@ class JobPost(Base):
 
     def save(self) -> None:
         """Save the job post to the database."""
-        with LocalSession() as session:
+        with LocalSession() as session:  # type: ignore
             try:
                 session.add(self)
                 session.commit()

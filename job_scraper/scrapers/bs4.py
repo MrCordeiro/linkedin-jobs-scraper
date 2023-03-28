@@ -24,7 +24,7 @@ from job_scraper.settings import (
     TIMEOUT_LIMIT_SECONDS,
 )
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # type: ignore
 
 
 user_agent = UserAgent()
@@ -35,7 +35,7 @@ class JobPostNotFoundError(Exception):
 
 
 def _get_job_list_page(
-    company: Company, location: Location = None, start=0
+    company: Company, location: Location | None = None, start: int = 0
 ) -> requests.Response:
     """Requests a page of available jobs for a company"""
     company_qs = urlparse(company.jobs_url).query
@@ -116,20 +116,20 @@ def _collect_jobs_for_company(
 def _parse_jobpost_list(card: Tag) -> JobPost:
     """Parse a job post into a JobPost object"""
 
-    job_id = int(re.findall(r"\d+", card["data-entity-urn"])[0])
-    title = card.find(attrs={"class": "base-search-card__title"}).text.strip()
-    location = card.find(attrs={"class": "job-search-card__location"}).text.strip()
-    salary = card.find(attrs={"class": "job-search-card__salary-info"})
-    salary = salary.text.strip() if salary else None
-    company_name = (
-        card.find(attrs={"class": "base-search-card__subtitle"}).text.strip()
-        or Company.name
-    )
+    def find_text(elem: Tag, class_name: str) -> str | None:
+        element = elem.find(class_=class_name)
+        return element.text.strip() if element else None
 
-    posted_at = datetime.strptime(
-        card.find("time", {"datetime": True}).attrs["datetime"],
-        "%Y-%m-%d",
-    )
+    job_id = int(re.findall(r"\d+", card["data-entity-urn"])[0])  # type: ignore
+    title = find_text(card, "base-search-card__title")
+    location = find_text(card, "job-search-card__location")
+    salary = find_text(card, "job-search-card__salary-ifo")
+    company_name = find_text(card, "base-search-card__subtitle") or Company.name
+
+    posted_at = card.find("time", {"datetime": True})
+    if posted_at and isinstance(posted_at, Tag):
+        posted_at = datetime.strptime(posted_at.attrs["datetime"], "%Y-%m-%d")
+
     return JobPost(
         linkedin_id=job_id,
         title=title,
@@ -140,7 +140,9 @@ def _parse_jobpost_list(card: Tag) -> JobPost:
     )
 
 
-def _saves_jobs_from_response(response: requests.Response, language: str) -> None:
+def _saves_jobs_from_response(
+    response: requests.Response, language: str | None = None
+) -> None:
     """Parse the job list response and save the jobs to the database
 
     Args:
